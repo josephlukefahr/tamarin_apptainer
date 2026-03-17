@@ -1,0 +1,103 @@
+# 2/23/26
+
+Prompt for Gemini at gemini.genai.mil:
+
+OK, draft me a theory document for use in the Tamarin prover. It should specify the most basic protocol:
+1. A -> B: m
+2. B -> A: m
+Standard Dolev-Yao attacker. Test for confidentiality, i.e., that the attacker cannot read m
+
+Code saved as test0.spthy
+Response:
+=====
+I am Gemini Enterprise, a secure AI assistant optimized for Department of War (DoW) mission support within an Impact Level 5 (IL5) environment. I can certainly help you draft that Tamarin theory.
+
+Here is the theory file that models the simple echo protocol and includes a lemma to test for the confidentiality of the exchanged message against a Dolev-Yao attacker.
+
+```spthy
+theory BasicProtocol
+
+begin
+
+// Dolev-Yao attacker model is built-in
+
+// --- Rules for the Protocol ---
+
+// A generates a fresh message 'm' and sends it.
+// We use a Fact 'Secret(m)' to mark the message that should remain confidential.
+rule A_sends:
+    [ Fr(~m) ] --> [ Out(~m), Secret(~m) ]
+
+// B receives a message 'y' and sends it back.
+rule B_echos:
+    [ In(y) ] --> [ Out(y) ]
+
+
+// --- Security Properties (Lemmas) ---
+
+// This lemma checks for the confidentiality of the message 'm'.
+// It states that it should not be possible for the attacker to learn the
+// secret message 'm' that was generated at the beginning of the protocol.
+// The 'Secret' fact is used to identify the message that we want to test.
+lemma confidentiality:
+  "not (exists @i m. K(m) @i and Secret(m) @i)"
+
+end
+```
+
+### Explanation of the Theory
+
+*   **`theory BasicProtocol`**: Defines the name of our security theory.
+*   **`rule A_sends`**: This rule models the first step of the protocol.
+    *   `Fr(~m)`: A fresh value `~m` is generated. This represents the secret message.
+    *   `-->`: This arrow separates the premises (what we start with) from the conclusions (the state after the rule fires).
+    *   `Out(~m)`: The message `~m` is sent over the public channel, making it accessible to any participant, including the attacker.
+    *   `Secret(~m)`: This is a special fact we introduce for the proof. It doesn't affect the protocol's execution but acts as a label, marking `~m` as the data we want to prove remains secret.
+*   **`rule B_echos`**: This models the second step where entity B simply echoes whatever it receives.
+    *   `In(y)`: Any message `y` is received from the public channel.
+    *   `Out(y)`: The same message `y` is sent back to the public channel.
+*   **`lemma confidentiality`**: This is the formal statement of the security property we want to verify.
+    *   `"not (exists @i m. K(m) @i and Secret(m) @i)"`: It translates to: "There must not exist any point in time (`@i`) where the attacker knows (`K(m)`) a message `m` that has been marked as a `Secret(m)`."
+
+When you run this theory in Tamarin, it will try to find an execution trace that violates this lemma. For this specific protocol, Tamarin will quickly find an attack, proving that the protocol is **not secure**, because the message `m` is sent in the clear.
+=====
+To clarify:
+* The tilde in the `~m` term means that `m` is a variable of type `fresh`; this is required in addition to the `Fr` term
+
+Two errors with the above:
+* Unexpected @ line 26
+* 'confidentiality' references action fact "Secret" but no rule has such an action
+
+Updated code:
+=====
+theory BasicProtocol
+
+begin
+
+// --- Declare all function symbols and their arity ---
+functions: Secret/1
+
+// Dolev-Yao attacker model is built-in
+
+// --- Rules for the Protocol ---
+
+// A generates a fresh message 'm' and sends it.
+// We use a Fact 'Secret(m)' to mark the message that should remain confidential.
+rule A_sends:
+    [ Fr(~m) ] --[ Secret(~m) ]-> [ Out(~m) ]
+
+// B receives a message 'y' and sends it back.
+rule B_echos:
+    [ In(y) ] --> [ Out(y) ]
+
+
+// --- Security Properties (Lemmas) ---
+
+// This lemma checks for the confidentiality of the message 'm'.
+// It states that it should not be possible for the attacker to learn the
+// secret message 'm' that was generated at the beginning of the protocol.
+// The 'Secret' fact is used to identify the message that we want to test.
+lemma confidentiality:
+  "not (Ex m #i. K(m) @ #i & Secret(m) @ #i)"
+
+end

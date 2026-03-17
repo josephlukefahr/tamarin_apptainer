@@ -1,0 +1,91 @@
+theory SenderKeysMLS
+begin
+
+// Dolev-Yao attacker model is built in; other primitives...
+builtins: hashing, signing
+
+// --- Rules for Dolev-Yao-attacker-controlled broadcast network with intermittent connectivity ---
+
+rule Connect:
+[
+    Offline(pid)
+]--[
+    Connect(pid)
+]->[
+    Online(pid)
+]
+
+rule Disconnect:
+[
+    Online(pid)
+]--[
+    Disconnect(pid)
+]->[
+    Offline(pid)
+]
+
+rule Broadcast_Message:
+[
+    Online(pid),
+    Message_To_Send(pid, m)
+]--[
+    Broadcast_Message(pid, m)
+]->[
+    Out(m)
+]
+
+rule Receive_Message:
+[
+    Online(pid),
+    In(m)
+]--[
+    Receive_Message(pid, m)
+]->[
+    Message_Received(pid, m)
+]
+
+
+// --- Why we need 
+
+// --- Rule for start state (i.e., generate signing key, process id; start disconnected)
+
+// rule Start:
+// [ 
+//     Fr(~sk) 
+// ]--[
+//     Start(~sk)
+// ]->[ 
+//     Signer(~sk),
+//     Offline(h(pk(~sk)))
+// ]
+
+// --- Rule for request & response for signing key ---
+
+// rule RequestSigningKey:
+// [
+//     Signer(myId, mySpk, mySsk)
+// ]--[RequestSigningKey(myId, otherId)]->[
+//     MessageToSend(myId, <'Signing Key Request', otherId>)
+// ]
+
+// rule RespondSigningKey:
+// [
+//     Signer(myId, mySignPubKey, mySignPrivKey),
+//     MessageReceived(<'Signing Key Request', myId>)
+// ]--[RespondSigningKey(myId, mySignPubKey)]->[
+//     MessageToSend(myId, <'Signing Key', mySignPubKey, sign(mySignPubKey, mySignPrivKey)>)
+// ]
+
+
+// --- Security Properties (Lemmas) ---
+
+lemma SignKey_Secrecy:
+// "All sk #i.
+//     Start(sk) @i ==> not (Ex #j. K(sk) @j)"
+
+// lemma SigningPublicKeySecrecy:
+// "All pid signingPublicKey ssk #i.
+//     GenerateSigner(pid, signingPublicKey, ssk) @i ==> not (Ex #j. K(signingPublicKey) @j)"
+
+
+end

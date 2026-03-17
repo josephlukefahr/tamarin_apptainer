@@ -1,0 +1,179 @@
+
+\documentclass{article}
+
+
+\usepackage[style=alphabetic]{biblatex}
+\addbibresource{main.bib}
+
+
+\usepackage{listings}
+\lstdefinestyle{lst-default}{ 
+    numberstyle=\tiny,
+    basicstyle=\ttfamily\footnotesize,     
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=10pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2,
+    xleftmargin=0.25in,
+    xrightmargin=0.25in
+}
+
+
+\usepackage[acronym]{glossaries}
+\makeglossaries
+\newacronym{ddil}{DDIL}{degraded, denied, intermittent, or limited}
+\newacronym{uas}{UAS}{unmanned aerial system}
+\newacronym{uav}{UAV}{unmanned aerial vehicle}
+
+
+\title{Modeling Connectivity-Constrained Dolev-Yao-Controlled Networks for Mobile and Ad Hoc Environments}
+\author{Joseph W. Lukefahr}
+\date{\today}
+
+
+\begin{document}
+
+\maketitle
+
+\section{Rationale for Adding Connectivity Contraints to the Dolev-Yao Model}
+
+In the standard Dolev-Yao model, the attacker completely controls message delivery.
+Any outgoing message is immediately placed into the attacker's knowledge, and the attacker can replay it for any process at any time. 
+Furthermore, in the default model, the attacker can force a process to receive a message at any time. \cite{Dolev_1983_SecurityPublicKey}
+In other words, the Dolev-Yao model assumes assumes a perfectly connected network where all processes are always "online". 
+The attacker can force message receipt regardless of whether the process should be reachable at that moment.
+
+This is unrealistic for wireless, mobile, ad hoc (e.g., multi-vehicle \gls{uas}), or networks operating in \gls{ddil} environments.
+These networks encounter intermittent wireless links, nodes moving in/out of communication range, and network partitions.
+Furthermore, network operators may impose deliberate shutdown of radios or limited communication windows (e.g., timed \gls{uav} to satellite transmissions).
+
+We therefore need an explicit notion of online connectivity.
+We need a more realistic model where message reception and transmission depend on local network state.
+
+The proposed connectivity-constrained Dolev-Yao model makes connectivity a first-class concept that limits attacker capabilities.
+The attacker still controls timing and content of messages (as in standard Dolev–Yao).
+However, it cannot violate connectivity assumptions or force message delivery when a process should not be reachable.
+
+\section{On Asynchronicity of this Model}
+
+This model is asynchronous in the sense that there is no global clock or timing assumptions.
+Processes can transition between online and offline states at any time, and the attacker can choose when to deliver messages.
+However, the model does not include explicit timing constraints or assumptions about message delivery delays.
+The attacker can delay message delivery indefinitely, but it cannot force delivery when the recipient is offline.
+This allows us to model a wide range of real-world scenarios, including those with intermittent connectivity, without imposing unrealistic timing assumptions.
+
+This asynchronous timing model has a rich history in the literature of security protocol analysis.
+Asynchronocity is implied in the original Dolev-Yao model, which does not assume any timing guarantees for message delivery or process execution \cite{Dolev_1983_SecurityPublicKey}.
+Since then, several bodies of work have used the Dolev-Yao model and its asynchronous timing model.
+Analyses of the Messaging Layer Security continuous group key agreement protocol use this asynchronous timing model \cite{CohnGordon_2018_EndstoEnds, Alwen_2020_Security, Brzuska_2022_Security}.
+
+Asynchronicity has an even richer history in the broader evolution of distributed systems analysis.
+It is considered one of the fundamental models of distributed systems, alongside synchronous and partially synchronous models \cite{Lynch_1996_DistributedAlgorithms}.
+For example, it founds the Fischer-Lynch-Paterson impossibility result regarding distributed consensus with one faulty process \cite{Fischer_1985_Impossibility}.
+
+\section{Tamarin Ruleset for Connectivity-Constrained Dolev-Yao}
+
+We have four Tamarin rules that model this network.
+Two rules model connectivity changes for processes.
+Two rules model message transmission/reception in a network where the attacker controls message delivery but is constrained by the connectivity state of the processes.
+
+\paragraph{Connect} This rule models a process transitioning from an offline 
+state to an online state. The premise \texttt{Offline(pid)} ensures the rule only fires 
+for participants that are currently disconnected. The action fact \texttt{Connect(pid)} 
+records that this transition occurred and is useful in proofs about connectivity 
+changes or liveness. The conclusion introduces the fact \texttt{Online(pid)}, marking 
+that this participant is now able to send and receive messages over the network.
+
+\begin{minipage}{\linewidth}
+\lstinputlisting[
+    style=lst-default,
+    firstnumber=9,
+    firstline=9,
+    lastline=16
+]{main.spthy}
+\end{minipage}
+
+\paragraph{Disconnect} This rule models a participant transitioning from being connected to losing 
+connectivity. When \texttt{Online(pid)} holds, the rule may fire, producing the action 
+fact \texttt{Disconnect(pid)} and updating the participant's state back to 
+\texttt{Offline(pid)}. After this transition, the participant should no longer be able 
+to send or receive messages unless it later executes a \texttt{Connect} rule.
+
+\begin{minipage}{\linewidth}
+\lstinputlisting[
+    style=lst-default,
+    firstnumber=18,
+    firstline=18,
+    lastline=25
+]{main.spthy}
+\end{minipage}
+
+\paragraph{Broadcast Message} This rule models sending a message into the network, 
+but only if the sender is online. It requires both \texttt{Online(pid)} and a protocol 
+fact \texttt{Message\_To\_Send(pid, m)} to indicate that the node intends to broadcast 
+message \texttt{m}. The event \texttt{Broadcast\_Message(pid, m)} marks that the broadcast 
+occurred, and \texttt{Out(m)} sends the message into the Dolev–Yao network where the 
+attacker gains control of it.
+
+\begin{minipage}{\linewidth}
+\lstinputlisting[
+    style=lst-default,
+    firstnumber=27,
+    firstline=27,
+    lastline=35
+]{main.spthy}
+\end{minipage}
+
+\paragraph{Receive Message} This rule models message reception, but with a connectivity constraint.  
+The \texttt{In(m)} premise is Tamarin’s standard way of modeling that the attacker has 
+chosen to deliver message \texttt{m} to this process at this moment. The presence of 
+\texttt{Online(pid)} ensures this delivery can only occur when the node has network 
+connectivity. When the rule fires, it generates a trace event 
+\texttt{Receive\_Message(pid, m)} and records that the process received the message by 
+asserting \texttt{Message\_Received(pid, m)}.
+
+\begin{minipage}{\linewidth}
+\lstinputlisting[
+    style=lst-default,
+    firstnumber=37,
+    firstline=37,
+    lastline=45
+]{main.spthy}
+\end{minipage}
+
+\section{Looking Ahead: Process ID as a Function of Signing Key}
+
+The network model described above relies on the concept of process identities (pids) to track which processes are online and to associate messages with specific processes.
+In the proposed protocol under development, each process identity could be derived from its signing key (by hashing the corresponding public verification key), specifically as the hash of the signing key:
+
+\begin{equation}
+pid = h(pk(sk))
+\end{equation}
+
+This design choice has several implications.  
+It ensures unique identifiers for each process.  
+It also binds the process identity to its fresh cryptographic key material.  
+Additionally, it simplifies identity management.
+
+Since signing keys are unique, deriving the process ID from the signing key ensures that each process has a unique identifier. This prevents identity collisions and simplifies authentication.
+
+By tying the process ID to the signing key, we create a strong link between a process's identity and its cryptographic credentials. This can enhance security by making it more difficult for an attacker to impersonate a process without access to the corresponding signing key.
+
+This approach simplifies the management of identities, as there is no need for a separate identity management system or mechanism. The process ID can be easily computed from the signing key.   More importantly, this choice eliminates the need for an entity authentication mechanism.
+
+\subsection{Injectivity in the Signing Key to Process ID Mapping}
+
+We assert that the mapping from signing keys to process IDs is injective, meaning that each signing key corresponds to exactly one process ID.
+Specifically, we assert that this function produces the same output only if the input signing keys are the same.
+This is the symbolic analog of collision resistance in the underlying hash function.
+Collision resistance, a complexity-theoretic notion, ensures that it is hard to find two distinct inputs $x \neq y$ such that $h(x)=h(y)$.
+In the symbolic model, we assume that the hash function behaves ideally, meaning that it produces unique outputs for different inputs.
+This requires implementations of this proposed protocol to be careful in their choice of hash function, ensuring it has strong collision resistance to uphold the security assumptions of the model.
+
+\printglossaries
+\printbibliography
+
+\end{document}

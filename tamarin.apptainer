@@ -1,0 +1,9 @@
+Bootstrap: docker
+From: archlinux:base-20260201.0.486523
+
+%help
+    Tamarin Theorem Prover Apptainer container.
+    This container provides the Tamarin Prover for security protocol verification.
+
+%post
+    pacman -Sy --noconfirm tamarin-prover

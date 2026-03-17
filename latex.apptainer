@@ -1,0 +1,8 @@
+Bootstrap: docker
+From: debian:13-slim
+
+%post
+    # Install TeX Live (core + recommended + fonts)
+    apt-get update && apt-get install -y --no-install-recommends\
+        texlive-full\
+        && rm -rf /var/lib/apt/lists/*
