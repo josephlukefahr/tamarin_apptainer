@@ -44,20 +44,29 @@ rule Receive_Message:
     Message_Received(pid, m)
 ]
 
+// --- Rule for start state (i.e., generate process id; start disconnected)
 
-// --- Why we need 
+rule Start:
+[ 
+    Fr(~pid) 
+]--[
+    Start(~pid)
+]->[ 
+    Process(~pid),
+    Offline(~pid)
+]
 
-// --- Rule for start state (i.e., generate signing key, process id; start disconnected)
+// --- Rules for generating signing key
 
-// rule Start:
-// [ 
-//     Fr(~sk) 
-// ]--[
-//     Start(~sk)
-// ]->[ 
-//     Signer(~sk),
-//     Offline(h(pk(~sk)))
-// ]
+rule Generate_Signing_Key:
+[
+    Fr(~sk),
+    Process(pid)
+]--[
+    Generate_Signing_Key(pid, ~sk)
+]->[
+    Signing_Key(pid, ~sk)
+]
 
 // --- Rule for request & response for signing key ---
 
@@ -79,9 +88,11 @@ rule Receive_Message:
 
 // --- Security Properties (Lemmas) ---
 
-lemma SignKey_Secrecy:
-// "All sk #i.
-//     Start(sk) @i ==> not (Ex #j. K(sk) @j)"
+lemma Unique_Pids:
+"All pid #i #j. Start(pid) @ #i & Start(pid) @ #j ==> #i = #j"
+
+lemma Signing_Key_Secrecy:
+"All pid sk #i. Generate_Signing_Key(pid, sk) @i ==> not (Ex #j. K(sk) @j)"
 
 // lemma SigningPublicKeySecrecy:
 // "All pid signingPublicKey ssk #i.

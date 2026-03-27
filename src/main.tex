@@ -42,13 +42,12 @@
 
 In the standard Dolev-Yao model, the attacker completely controls message delivery.
 Any outgoing message is immediately placed into the attacker's knowledge, and the attacker can replay it for any process at any time. 
-Furthermore, in the default model, the attacker can force a process to receive a message at any time. \cite{Dolev_1983_SecurityPublicKey}
+Furthermore, in the default model, the attacker can force a process to receive a message at any time \cite{Dolev_1983_SecurityPublicKey}.
 In other words, the Dolev-Yao model assumes assumes a perfectly connected network where all processes are always "online". 
 The attacker can force message receipt regardless of whether the process should be reachable at that moment.
 
 This is unrealistic for wireless, mobile, ad hoc (e.g., multi-vehicle \gls{uas}), or networks operating in \gls{ddil} environments.
 These networks encounter intermittent wireless links, nodes moving in/out of communication range, and network partitions.
-Furthermore, network operators may impose deliberate shutdown of radios or limited communication windows (e.g., timed \gls{uav} to satellite transmissions).
 
 We therefore need an explicit notion of online connectivity.
 We need a more realistic model where message reception and transmission depend on local network state.
@@ -71,7 +70,7 @@ Since then, several bodies of work have used the Dolev-Yao model and its asynchr
 Analyses of the Messaging Layer Security continuous group key agreement protocol use this asynchronous timing model \cite{CohnGordon_2018_EndstoEnds, Alwen_2020_Security, Brzuska_2022_Security}.
 
 Asynchronicity has an even richer history in the broader evolution of distributed systems analysis.
-It is considered one of the fundamental models of distributed systems, alongside synchronous and partially synchronous models \cite{Lynch_1996_DistributedAlgorithms}.
+It is considered one of the fundamental models of distributed systems, alongside the synchronous and partially synchronous timing models \cite{Lynch_1996_DistributedAlgorithms}.
 For example, it founds the Fischer-Lynch-Paterson impossibility result regarding distributed consensus with one faulty process \cite{Fischer_1985_Impossibility}.
 
 \section{Tamarin Ruleset for Connectivity-Constrained Dolev-Yao}
