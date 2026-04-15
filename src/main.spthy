@@ -4,68 +4,112 @@ begin
 // Dolev-Yao attacker model is built in; other primitives...
 builtins: hashing, signing
 
+/* This restriction tells Tamarin that whenever an Eq( ) fact occurs,
+ * the terms in it must be equal. This allows us to model rules that
+ * only trigger if e.g. the AEAD correctly verifies */
+restriction Eq_testing: "All x y #i. Eq(x, y) @ i ==> x = y"
+
 // --- Rules for Dolev-Yao-attacker-controlled broadcast network with intermittent connectivity ---
 
 rule Connect:
 [
-    Offline(pid)
+    Offline(agent_id)
 ]--[
-    Connect(pid)
+    Connect(agent_id)
 ]->[
-    Online(pid)
+    Online(agent_id)
 ]
 
 rule Disconnect:
 [
-    Online(pid)
+    Online(agent_id)
 ]--[
-    Disconnect(pid)
+    Disconnect(agent_id)
 ]->[
-    Offline(pid)
+    Offline(agent_id)
 ]
 
 rule Broadcast_Message:
 [
-    Online(pid),
-    Message_To_Send(pid, m)
+    Online(agent_id),
+    Message_To_Send(agent_id, m)
 ]--[
-    Broadcast_Message(pid, m)
+    Broadcast_Message(agent_id, m)
 ]->[
+    Online(agent_id),
     Out(m)
 ]
 
 rule Receive_Message:
 [
-    Online(pid),
+    Online(agent_id),
     In(m)
 ]--[
-    Receive_Message(pid, m)
+    Receive_Message(agent_id, m)
 ]->[
-    Message_Received(pid, m)
+    Online(agent_id),
+    Message_Received(agent_id, m)
 ]
 
-// --- Rule for start state (i.e., generate process id; start disconnected)
-
-rule Start:
-[ 
-    Fr(~pid) 
+rule Drop_Message:
+[
+    Offline(agent_id),
+    In(m)
 ]--[
-    Start(~pid)
+    Drop_Message(agent_id, m)
+]->[
+    Offline(agent_id)
+]
+
+// --- Rule for start state (i.e., generate agent with unique id; start disconnected)
+
+rule Generate_Agent:
+[ 
+    Fr(~agent_id)
+]--[
+    Generate_Agent(~agent_id)
 ]->[ 
-    Process(~pid),
-    Offline(~pid)
+    Agent(~agent_id),
+    Offline(~agent_id)
 ]
 
 // --- Rules for generating signing key
 
-rule Generate_Signing_Key:
+rule Generate_Signer:
 [
-    Fr(~sk),
-    Process(pid)
+    Agent(agent_id),
+    Fr(~sk)
 ]--[
-    Generate_Signing_Key(pid, ~sk)
+    Generate_Signer(agent_id, pk(~sk))
 ]->[
-    Signing_Key(pid, ~sk)
+    Agent(agent_id),
+    LocalSigner(agent_id, pk(~sk), ~sk)
+]
+
+// --- Advertising signing key
+
+rule Advertise_Signer:
+let 
+    m = <'SignerAdvertisement', pk(sk)>
+in [
+    LocalSigner(agent_id, signer_id, sk)
+]--[
+    Advertise_Signer(agent_id, signer_id)
+]->[
+    Signer(agent_id, signer_id, sk),
+    Message_To_Send(agent_id, <m, sign(m, sk)>)
+]
+
+rule Process_SignerAdvertisement:
+let
+    m = <'Signer', vk>
+in [
+    Message_Received(agent_id, <m, sig>)
+]--[
+    Store_SignerAdvertisement(agent_id, vk),
+    Eq(verify(sig, m, vk), true)
+]->[
+    RemoteSigner(agent_id, h(vk), vk)
 ]
 
 // --- Rule for request & response for signing key ---
@@ -89,14 +133,13 @@ rule Generate_Signing_Key:
 // --- Security Properties (Lemmas) ---
 
 lemma Unique_Pids:
-"All pid #i #j. Start(pid) @ #i & Start(pid) @ #j ==> #i = #j"
+"All agent_id #i #j. Generate_Agent(agent_id) @ #i & Generate_Agent(agent_id) @ #j ==> #i = #j"
 
 lemma Signing_Key_Secrecy:
-"All pid sk #i. Generate_Signing_Key(pid, sk) @i ==> not (Ex #j. K(sk) @j)"
+"All agent_id signer_id sk #i. Generate_Signer(agent_id, signer_id, sk) @i ==> not (Ex #j. K(sk) @j)"
 
 // lemma SigningPublicKeySecrecy:
-// "All pid signingPublicKey ssk #i.
-//     GenerateSigner(pid, signingPublicKey, ssk) @i ==> not (Ex #j. K(signingPublicKey) @j)"
-
+// "All agent_id signingPublicKey ssk #i.
+//     GenerateSigner(agent_id, signingPublicKey, ssk) @i ==> not (Ex #j. K(signingPublicKey) @j)"
 
 end
